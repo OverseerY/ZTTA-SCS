@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Security Control System</string>
+    <string name="app_name_short">ZTTA SCS</string>
+
+    <string name="label_cancel">Cancel</string>
+    <string name="label_ok">OK</string>
+    <string name="label_history">History</string>
+    <string name="label_back">To main activity</string>
+    <string name="label_range">Set dates range</string>
+    <string name="label_menu">Menu</string>
+    <string name="label_wifi">Internet</string>
+    <string name="label_nfc">NFC</string>
+    <string name="label_info">Information</string>
+    <string name="label_error">Error</string>
+    <string name="label_warning">Warning</string>
+    <string name="label_success">Success!</string>
+    <string name="label_fail">Fail!</string>
+    <string name="label_default">Touch NFC tag to read it</string>
+    <string name="label_tag">Tag</string>
+
+    <string name="hint_begin">Begin</string>
+    <string name="hint_end">End</string>
+
+    <string name="message_success">Tag was scanned successfully</string>
+    <string name="message_fail">Tag processing failed. Try again or skip</string>
+    <string name="message_error">Some errors occurred. Restart application, check wi-fi connection and try again</string>
+</resources>

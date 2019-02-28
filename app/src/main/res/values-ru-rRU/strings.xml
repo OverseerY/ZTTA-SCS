@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Система контроля обхода</string>
+    <string name="app_name_short">ЗТТА СКО</string>
+    <string name="label_cancel">Отмена</string>
+    <string name="label_ok">ОК</string>
+    <string name="label_history">История</string>
+    <string name="label_back">На главную страницу</string>
+    <string name="label_range">Установить временной диапазон</string>
+    <string name="label_menu">Меню</string>
+    <string name="label_wifi">Интернет</string>
+    <string name="label_nfc">NFC</string>
+    <string name="label_info">Уведомление</string>
+    <string name="label_error">Ошибка</string>
+    <string name="label_warning">Предупреждение</string>
+    <string name="label_success">Успешно!</string>
+    <string name="label_fail">Облом!</string>
+    <string name="label_default">Коснитесь NFC-метки телефоном, чтобы считать её</string>
+    <string name="label_tag">Метка</string>
+    <string name="hint_begin">Начало</string>
+    <string name="hint_end">Конец</string>
+    <string name="message_success">Метка успешно считана</string>
+    <string name="message_fail">Ошибка в процессе обработки метки. Попробуйте снова либо пропустите её</string>
+    <string name="message_error">"Что-то пошло не так. Перезапустите приложение, проверьте подключение к Wi-Fi, состояние NFC и попробуйте снова. "</string>
+</resources>
