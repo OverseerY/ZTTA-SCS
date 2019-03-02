@@ -19,7 +19,11 @@
     <string name="label_tag">Метка</string>
     <string name="hint_begin">Начало</string>
     <string name="hint_end">Конец</string>
+    <string name="label_compare_error">Ошибка сопоставления</string>
+    <string name="label_unknown_tag">Неизвестная метка</string>
     <string name="message_success">Метка успешно считана</string>
     <string name="message_fail">Ошибка в процессе обработки метки. Попробуйте снова либо пропустите её</string>
-    <string name="message_error">"Что-то пошло не так. Перезапустите приложение, проверьте подключение к Wi-Fi, состояние NFC и попробуйте снова. "</string>
+    <string name="message_error">Что-то пошло не так. Перезапустите приложение, проверьте подключение к Wi-Fi, состояние NFC и попробуйте снова.</string>
+    <string name="message_white_list">Невозможно проверить метку с допустимыми. Перейдите в зону уверенного приёма Wi-Fi, перезапустите приложение и попробуйте снова</string>
+    <string name="message_unknown_tag">Считанная метка отсутствует в списке допустимых</string>
 </resources>

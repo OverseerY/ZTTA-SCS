@@ -12,7 +12,6 @@ import android.widget.ProgressBar;
 
 public class MainFragment extends Fragment {
     ImageView historyIcon;
-    ProgressBar progressBar;
 
     public MainFragment() {}
 

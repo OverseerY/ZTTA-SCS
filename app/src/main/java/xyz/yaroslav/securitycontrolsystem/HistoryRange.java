@@ -20,7 +20,7 @@ import java.util.Calendar;
 import java.util.Date;
 
 public class HistoryRange extends DialogFragment {
-    private static final String default_url = "http://192.168.0.220:5002/events";
+    private static final String default_url = "http://192.168.0.14:5002/events";
 
     EditText startDate;
     EditText finishDate;

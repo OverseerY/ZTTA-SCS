@@ -31,10 +31,13 @@ import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
@@ -49,6 +52,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -58,9 +64,12 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     //#region Variables
 
-    private static final String default_url = "http://192.168.0.220:5002/add";
+    private static final String default_url = "http://192.168.0.14:5002/add";
+    private static final String tags_url = "http://192.168.0.14:5002/tags";
     private static final String fileName = "temp.txt";
+    private static final String whiteList = "tags.txt";
 
+    private List<Map> white_list;
 
     NfcManager nfcManager;
     NfcAdapter nfcAdapter;
@@ -70,6 +79,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     TextView nfcLabel;
     TextView netLabel;
     ProgressBar progressBar;
+
+    private boolean isWhiteListExists = false;
 
     private Handler pHandler;
 
@@ -111,6 +122,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         netLabel = findViewById(R.id.net_text);
         progressBar = findViewById(R.id.main_progress);
 
+        white_list = new ArrayList<>();
+
         displayMainFragment();
 
         testInternetState();
@@ -128,12 +141,15 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     protected void onStart() {
         super.onStart();
 
+        delayWhiteList();
         delayCache();
+
+        parseJsonFromFile();
     }
 
     @Override
     public void onBackPressed() {
-        //displayMainFragment();
+        displayMainFragment();
     }
 
     private void displayMainFragment() {
@@ -151,7 +167,21 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             public void run() {
                 postHandler();
             }
-        }, 5000);
+        }, 10000);
+    }
+
+    private void delayWhiteList() {
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    new LoadWhiteListTagsAsyncTask().execute(tags_url).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 2000);
     }
 
     //#endregion
@@ -292,7 +322,15 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         }
 
         if (tag_data.length() > 0 && !tag_id.equals("")) {
-            saveData(tag_id, tag_data.toString(), getCurTime());
+            if (isWhiteListExists) {
+                if (compareTag(tag_id, tag_data.toString())) {
+                    saveData(tag_id, tag_data.toString(), getCurTime());
+                } else {
+                    autoCloseDialog(getString(R.string.label_unknown_tag), getString(R.string.message_unknown_tag), 3);
+                }
+            } else {
+                autoCloseDialog(getString(R.string.label_compare_error), getString(R.string.message_white_list), 2);
+            }
         } else {
             autoCloseDialog(getString(R.string.label_error), getString(R.string.message_fail), 2);
         }
@@ -640,6 +678,120 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    //#endregion
+
+    //#region White list of Tags
+
+    private class LoadWhiteListTagsAsyncTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... strings) {
+            getWhiteListJson(strings[0]);
+            return "";
+        }
+    }
+
+    private void getWhiteListJson(String srv_url) {
+        try {
+            URL url = new URL(srv_url);
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+
+            InputStream stream = new BufferedInputStream(urlConnection.getInputStream());
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
+            StringBuilder builder = new StringBuilder();
+
+            String inputString ;
+
+            while ((inputString = bufferedReader.readLine()) != null) {
+                builder.append(inputString);
+            }
+
+            urlConnection.disconnect();
+
+            if (!builder.toString().equals(readWhiteListFromFile())) {
+                saveWhiteList(builder.toString());
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveWhiteList(String data) {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(whiteList, Context.MODE_PRIVATE));
+            outputStreamWriter.write(data);
+            outputStreamWriter.close();
+        }
+        catch (IOException e) {
+            Log.e("WHITE_LIST", "Error occurred: " + e.toString());
+        }
+    }
+
+    private String readWhiteListFromFile() {
+        String ret = "";
+
+        try {
+            InputStream inputStream = Objects.requireNonNull(getApplicationContext()).openFileInput(whiteList);
+
+            if ( inputStream != null ) {
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                String receiveString;
+                StringBuilder stringBuilder = new StringBuilder();
+
+                while ((receiveString = bufferedReader.readLine()) != null ) {
+                    stringBuilder.append(receiveString);
+                }
+
+                inputStream.close();
+                ret = stringBuilder.toString();
+            }
+        }
+        catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ret;
+    }
+
+    private void parseJsonFromFile() {
+        try {
+            String jsonString = readWhiteListFromFile();
+            JSONObject topLevel = new JSONObject(jsonString);
+            JSONArray jArray = topLevel.getJSONArray("tags");
+
+            white_list.clear();
+
+            for (int i = 0; i < jArray.length(); i++) {
+                String tagName;
+                String tagUid ;
+                try {
+                    JSONObject nestedObject = jArray.getJSONObject(i);
+                    tagName = String.valueOf(nestedObject.getString("tag_data"));
+                    tagUid = String.valueOf(nestedObject.getString("tag_id"));
+
+                    Map<String,Object> tagItem = new TagItem(tagUid, tagName).toWhiteListMap();
+                    white_list.add(tagItem);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if (white_list.size() > 0) {
+                isWhiteListExists = true;
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean compareTag(String uid, String tagName) {
+        Map<String, Object> tagItem = new TagItem(uid, tagName).toWhiteListMap();
+        return white_list.contains(tagItem);
     }
 
     //#endregion

@@ -29,6 +29,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -40,7 +41,7 @@ public class HistoryFragment extends Fragment{
 
     private String url_with_range;
 
-    private static final String default_url = "http://192.168.0.220:5002/events?st=&et=";
+    private static final String default_url = "http://192.168.0.14:5002/events?st=&et=";
 
     private List<TagItem> tagItemList;
     private TagAdapter tagAdapter;
@@ -188,6 +189,7 @@ public class HistoryFragment extends Fragment{
         }
         try {
             new GetTagsAsynkTask().execute(url).get();
+            Collections.sort(tagItemList, TagItem.TagComparator);
             RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getContext());
             historyRecyclerView.setLayoutManager(layoutManager);
             historyRecyclerView.setItemAnimator(new DefaultItemAnimator());

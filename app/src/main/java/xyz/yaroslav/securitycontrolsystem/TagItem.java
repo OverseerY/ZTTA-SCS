@@ -1,5 +1,6 @@
 package xyz.yaroslav.securitycontrolsystem;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,6 +15,11 @@ public class TagItem {
         this.uid = uid;
         this.payload = payload;
         this.sTime = sTime;
+    }
+
+    public TagItem(String uid, String payload) {
+        this.uid = uid;
+        this.payload = payload;
     }
 
     public String getUid() {
@@ -37,4 +43,21 @@ public class TagItem {
 
         return result;
     }
+
+    public Map<String, Object> toWhiteListMap() {
+        HashMap<String, Object> result = new HashMap<>();
+
+        result.put("tag_id", getUid());
+        result.put("tag_data", getPayload());
+
+        return result;
+    }
+
+    public static Comparator<TagItem> TagComparator = new Comparator<TagItem>() {
+        public int compare(TagItem item1, TagItem item2) {
+            String tagTime1 = item1.getsTime().toUpperCase();
+            String tagTime2 = item2.getsTime().toUpperCase();
+            return tagTime2.compareTo(tagTime1);
+        }
+    };
 }
