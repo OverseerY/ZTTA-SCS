@@ -20,6 +20,9 @@ import java.util.Calendar;
 import java.util.Date;
 
 public class HistoryRange extends DialogFragment {
+
+    //#region Variables
+
     private static final String default_url = "http://192.168.0.14:5002/events";
 
     EditText startDate;
@@ -38,6 +41,10 @@ public class HistoryRange extends DialogFragment {
     }
 
     HistoryRangeListener mListener;
+
+    //#endregion
+
+    //#region Fragment Methods
 
     @Override
     public void onAttach(Context context) {
@@ -101,6 +108,10 @@ public class HistoryRange extends DialogFragment {
         return view;
     }
 
+    //#endregion
+
+    //#region Date and Time
+
     public static Calendar setDefaultTime(Calendar calendar) {
         calendar.set(Calendar.HOUR_OF_DAY, 0);
         calendar.set(Calendar.MINUTE, 0);
@@ -146,11 +157,6 @@ public class HistoryRange extends DialogFragment {
         dialog.show();
     }
 
-    private String requestTags() {
-        makeSureThatTimeIsNormal();
-        return makeUrlWithDateParameters(startTimeMsec, endTimeMsec);
-    }
-
     private void makeSureThatTimeIsNormal() {
         if (endTimeMsec == 0) {
             endTimeMsec = todayDate().getTimeInMillis() + dateCorrection;
@@ -168,9 +174,20 @@ public class HistoryRange extends DialogFragment {
 
     }
 
+    //#endregion
+
+    //#region Request
+
+    private String requestTags() {
+        makeSureThatTimeIsNormal();
+        return makeUrlWithDateParameters(startTimeMsec, endTimeMsec);
+    }
+
     private String makeUrlWithDateParameters(long start, long end) {
         return default_url + "?st=" + Long.toString(start) + "&et=" + Long.toString(end);
     }
+
+    //#endregion
 
 }
 

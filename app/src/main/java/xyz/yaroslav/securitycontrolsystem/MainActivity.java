@@ -31,7 +31,6 @@ import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -52,7 +51,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import java.util.HashMap;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     private static final String tags_url = "http://192.168.0.14:5002/tags";
     private static final String fileName = "temp.txt";
     private static final String whiteList = "tags.txt";
+    private static final String shortList = "recent.txt";
 
     private List<Map> white_list;
 
@@ -126,6 +127,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
         displayMainFragment();
 
+        new RenewLocalHistoryAsynkTask().execute();
+
         testInternetState();
         testNfcState();
     }
@@ -178,7 +181,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 try {
                     new LoadWhiteListTagsAsyncTask().execute(tags_url).get();
                 } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
+                    Log.e("WHITE_LIST", "AsyncTask while loading exception: " + e.getMessage());
                 }
             }
         }, 2000);
@@ -360,8 +363,9 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         try {
             String value = uid + "," + payload + "," + time;
             String result = new HTTPAsyncTask().execute(value).get();
+            String str = buidJsonObject(uid, payload, time) + ";";
+            saveToShortHistoryFile(str);
             if (!result.equals("OK")) {
-                String str = buidJsonObject(uid, payload, time) + ";";
                 if (!str.equals("")) {
                     writeToFile(str, payload, true);
                 } else {
@@ -370,10 +374,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             } else {
                 autoCloseDialog(payload, getString(R.string.message_success), 1);
             }
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (ExecutionException | InterruptedException e) {
+            Log.e("SAVE_TAG", "AsyncTask exception: " + e.getMessage());
         }
     }
 
@@ -443,11 +445,11 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 try {
                     return HttpPost(urls[0]);
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    Log.e("HTTP_POST", "JSON Exception: " + e.getMessage());
                     return "Error!";
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("HTTP_POST", "IO Exception: " + e.getMessage());
                 return "Unable to retrieve web page. URL may be invalid.";
             }
         }
@@ -497,7 +499,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             jsonObject.put("tag_time", time);
             return jsonObject.toString();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e("BUILD_JSON", "JSON Exception: " + e.getMessage());
             return "";
         }
     }
@@ -522,7 +524,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             try {
                 return HttpPostPing(urls[0]);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("PING_SERVER", "IO Exception: " + e.getMessage());
                 return "Unable to retrieve web page. URL may be invalid.";
             }
         }
@@ -559,7 +561,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                         getTagsFromFile();
                     }
                 } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
+                    Log.e("PING_SERVER", "AsyncTask exception: " + e.getMessage());
                 }
 
                 pHandler.sendEmptyMessageDelayed(0, 60 * 1000);
@@ -582,7 +584,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                         temp.remove(s);
                     }
                 } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
+                    Log.e("SAVED_TAGS", "AsyncTask exception: " + e.getMessage());
                 }
             }
             try {
@@ -601,7 +603,6 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     private String readDataFromFile() {
         String ret = "";
-
         try {
             InputStream inputStream = Objects.requireNonNull(getApplicationContext()).openFileInput(fileName);
 
@@ -620,9 +621,9 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             }
         }
         catch (FileNotFoundException e) {
-            e.printStackTrace();
+            Log.e("SAVED_TAGS", "File not found: " + e.getMessage());
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("SAVED_TAGS", "IO Exception: " + e.getMessage());
         }
 
         return ret;
@@ -634,7 +635,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             try {
                 return SavedTagPost(params[0]);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("SAVED_TAGS", "IO Exception: " + e.getMessage());
                 return "Unable to retrieve web page. URL may be invalid.";
             }
         }
@@ -714,7 +715,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("WHITE_LIST", "IO Exception: " + e.getMessage());
         }
     }
 
@@ -750,9 +751,9 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             }
         }
         catch (FileNotFoundException e) {
-            e.printStackTrace();
+            Log.e("WHITE_LIST", "File not found: " + e.getMessage());
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("WHITE_LIST", "IO Exception: " + e.getMessage());
         }
 
         return ret;
@@ -777,7 +778,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                     Map<String,Object> tagItem = new TagItem(tagUid, tagName).toWhiteListMap();
                     white_list.add(tagItem);
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    Log.e("WHITE_LIST", "JSON Exception: " + e.getMessage());
                 }
             }
 
@@ -785,13 +786,99 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 isWhiteListExists = true;
             }
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e("WHITE_LIST", "JSON Parse Exception: " + e.getMessage());
         }
     }
 
     private boolean compareTag(String uid, String tagName) {
         Map<String, Object> tagItem = new TagItem(uid, tagName).toWhiteListMap();
         return white_list.contains(tagItem);
+    }
+
+    //#endregion
+
+    //#region Local history
+
+    private class RenewLocalHistoryAsynkTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... strings) {
+            removeExpiredTags();
+            return "";
+        }
+    }
+
+    private void saveToShortHistoryFile(String data) {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(shortList, Context.MODE_APPEND));
+            outputStreamWriter.write(data);
+            outputStreamWriter.close();
+        }
+        catch (IOException e) {
+            Log.e("SHORT_LIST", "Write to file failed: " + e.toString());
+        }
+    }
+
+    private boolean checkTagRecency(String value) {
+        long currentTime = System.currentTimeMillis();
+        long comparableTime = Long.parseLong(value);
+        return ((currentTime - comparableTime) <= 86400000);
+    }
+
+    private String readHistoryFromFile() {
+        String ret = "";
+        try {
+            InputStream inputStream = Objects.requireNonNull(getApplicationContext()).openFileInput(shortList);
+
+            if ( inputStream != null ) {
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                String receiveString;
+                StringBuilder stringBuilder = new StringBuilder();
+
+                while ((receiveString = bufferedReader.readLine()) != null ) {
+                    stringBuilder.append(receiveString);
+                }
+
+                inputStream.close();
+                ret = stringBuilder.toString();
+            }
+        }
+        catch (FileNotFoundException e) {
+            Log.e("HISTORY_FILE", "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.e("HISTORY_FILE", "IO Exception: " + e.getMessage());
+        }
+
+        return ret;
+    }
+
+    private void removeExpiredTags() {
+        String tmp = readHistoryFromFile();
+        String[] arr = tmp.split(";");
+        if (arr.length > 0) {
+            List<String> temp = new ArrayList<>();
+            ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
+            for (String str : list) {
+                try {
+                    JSONObject jsonObject = new JSONObject(str);
+                    String tagTime = String.valueOf(jsonObject.getString("tag_time"));
+                    Log.i("TEST_SHOW_TIME", tagTime);
+                    if (checkTagRecency(tagTime)) {
+                        temp.add(str + ";");
+                    }
+                } catch (JSONException e) {
+                    Log.e("JSON_PARSE", e.getMessage());
+                }
+            }
+            rewriteHistoryFile(temp);
+        }
+    }
+
+    private void rewriteHistoryFile(List<String> values) {
+        getApplicationContext().deleteFile(shortList);
+        for (String value : values) {
+            saveToShortHistoryFile(value);
+        }
     }
 
     //#endregion

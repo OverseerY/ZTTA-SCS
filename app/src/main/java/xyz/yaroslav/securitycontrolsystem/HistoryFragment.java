@@ -11,6 +11,7 @@ import android.support.v4.app.FragmentTransaction;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,18 +24,22 @@ import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 public class HistoryFragment extends Fragment{
+    //#region Variables
+
     ImageView rangeIcon;
     ImageView backIcon;
     ProgressBar progressBar;
@@ -42,8 +47,10 @@ public class HistoryFragment extends Fragment{
     private String url_with_range;
 
     private static final String default_url = "http://192.168.0.14:5002/events?st=&et=";
+    private static final String shortList = "recent.txt";
 
     private List<TagItem> tagItemList;
+    private List<TagItem> tagFromFileList;
     private TagAdapter tagAdapter;
     private RecyclerView historyRecyclerView;
 
@@ -52,6 +59,10 @@ public class HistoryFragment extends Fragment{
     public static HistoryFragment newInstance() {
         return new HistoryFragment();
     }
+
+    //#endregion
+
+    //#region Fragment Methods
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -69,6 +80,7 @@ public class HistoryFragment extends Fragment{
         historyRecyclerView = rootView.findViewById(R.id.history_tags);
 
         tagItemList = new ArrayList<>();
+        tagFromFileList = new ArrayList<>();
         tagAdapter = new TagAdapter(tagItemList);
 
         rangeIcon.setOnClickListener(new View.OnClickListener() {
@@ -96,12 +108,27 @@ public class HistoryFragment extends Fragment{
         delayRequest();
     }
 
+    //#endregion
+
+    //#region Get Tags From Server
+
     private void delayRequest() {
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                showTags(url_with_range);
+                if (url_with_range == null || url_with_range.equals("")) {
+                    try {
+                        String result = new RetrieveHistoryTagsAsyncTask().execute().get();
+                        if (result != null && !tagFromFileList.isEmpty()) {
+                            showHistoryTags();
+                        }
+                    } catch (ExecutionException | InterruptedException e) {
+                        Log.e("REQUEST_HISTORY", "AsyncTask Exception: " + "(" + e.getClass() + "): " + e.getMessage());
+                    }
+                } else {
+                    showTags(url_with_range);
+                }
             }
         }, 500);
     }
@@ -172,11 +199,13 @@ public class HistoryFragment extends Fragment{
                     TagItem tagItem = new TagItem(tagUid, tagName, tagTime);
                     tagItemList.add(tagItem);
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    Log.e("GET_HISTORY", "JSON Exception: " + "(" + e.getClass() + "): " + e.getMessage());
                 }
             }
-        } catch (IOException | JSONException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            Log.e("GET_HISTORY", "IO Exception: " + "(" + e.getClass() + "): " + e.getMessage());
+        } catch (JSONException e) {
+            Log.e("GET_HISTORY", "JSON Exception: " + "(" + e.getClass() + "): " + e.getMessage());
         }
     }
 
@@ -195,8 +224,92 @@ public class HistoryFragment extends Fragment{
             historyRecyclerView.setItemAnimator(new DefaultItemAnimator());
             historyRecyclerView.setAdapter(tagAdapter);
         } catch (ExecutionException | InterruptedException e) {
-            e.printStackTrace();
+            Log.e("SHOW_TAGS", "AsyncTask Exception: " + "(" + e.getClass() + "): " + e.getMessage());
         }
     }
+
+    //#endregion
+
+    //#region Retrieve and show tags from History file
+
+    private class RetrieveHistoryTagsAsyncTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... strings) {
+            parseHistoryTags();
+            return "Complete";
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            progressBar.setVisibility(View.INVISIBLE);
+        }
+    }
+
+    private String readTagsFromFile() {
+        String ret = "";
+        try {
+            InputStream inputStream = Objects.requireNonNull(getContext()).openFileInput(shortList);
+
+            if ( inputStream != null ) {
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                String receiveString;
+                StringBuilder stringBuilder = new StringBuilder();
+
+                while ((receiveString = bufferedReader.readLine()) != null ) {
+                    stringBuilder.append(receiveString);
+                }
+
+                inputStream.close();
+                ret = stringBuilder.toString();
+            }
+        }
+        catch (FileNotFoundException e) {
+            Log.e("HISTORY_FILE", "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.e("HISTORY_FILE", "IO Exception: " + e.getMessage());
+        }
+
+        return ret;
+    }
+
+    private void parseHistoryTags() {
+        String tmp = readTagsFromFile();
+        if (!tmp.equals("")) {
+            String[] arr = tmp.split(";");
+            if (arr.length > 0) {
+                tagFromFileList.clear();
+                for (String value : arr) {
+                    try {
+                        String tagName;
+                        String tagTime;
+                        String tagUid;
+
+                        JSONObject jsonObject = new JSONObject(value);
+                        tagName = String.valueOf(jsonObject.getString("tag_data"));
+                        tagTime = String.valueOf(jsonObject.getString("tag_time"));
+                        tagUid = String.valueOf(jsonObject.getString("tag_id"));
+                        TagItem tagItem = new TagItem(tagUid, tagName, tagTime);
+
+                        tagFromFileList.add(tagItem);
+                    } catch (JSONException e) {
+                        Log.e("HISTORY_FILE", "JSON Exception in " + "(" + e.getClass() + "): " + e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
+    private void showHistoryTags() {
+        Collections.sort(tagFromFileList, TagItem.TagComparator);
+        tagAdapter = new TagAdapter(tagFromFileList);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getContext());
+        historyRecyclerView.setLayoutManager(layoutManager);
+        historyRecyclerView.setItemAnimator(new DefaultItemAnimator());
+        historyRecyclerView.setAdapter(tagAdapter);
+    }
+
+    //#endregion
 
 }
