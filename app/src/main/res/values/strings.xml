@@ -19,6 +19,7 @@
     <string name="label_tag">Tag</string>
     <string name="label_compare_error">Unable to compare</string>
     <string name="label_unknown_tag">Unknown tag</string>
+    <string name="label_clear_file">Clear local history</string>
 
     <string name="hint_begin">Begin</string>
     <string name="hint_end">End</string>
@@ -28,4 +29,5 @@
     <string name="message_error">Some errors occurred. Restart application, check wi-fi connection and try again</string>
     <string name="message_white_list">Unable to check tag with white-listed. Check network connection and reload the application</string>
     <string name="message_unknown_tag">Scanned tag does not valid</string>
+    <string name="message_warning_delete">This action will delete local file with scanned tags for a day. Proceed?</string>
 </resources>

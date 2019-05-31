@@ -874,7 +874,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         }
     }
 
-    private void rewriteHistoryFile(List<String> values) {
+    private void rewriteHistoryFile(List<String> values)  {
         getApplicationContext().deleteFile(shortList);
         for (String value : values) {
             saveToShortHistoryFile(value);
@@ -882,7 +882,6 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     }
 
     //#endregion
-
 }
 
 
