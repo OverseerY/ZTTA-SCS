@@ -297,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         super.onNewIntent(intent);
         StringBuilder tag_data = new StringBuilder();
         String tag_id = "";
+        long cur_time = System.currentTimeMillis();
 
         Parcelable[] data = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
         if (data != null) {
@@ -327,7 +328,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         if (tag_data.length() > 0 && !tag_id.equals("")) {
             if (isWhiteListExists) {
                 if (compareTag(tag_id, tag_data.toString())) {
-                    saveData(tag_id, tag_data.toString(), getCurTime());
+                    // saveData(tag_id, tag_data.toString(), getCurTime());
+                    saveData(tag_id, tag_data.toString(), String.valueOf(cur_time));
                 } else {
                     autoCloseDialog(getString(R.string.label_unknown_tag), getString(R.string.message_unknown_tag), 3);
                 }
