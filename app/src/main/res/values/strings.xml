@@ -5,6 +5,7 @@
     <string name="label_cancel">Cancel</string>
     <string name="label_ok">OK</string>
     <string name="label_history">History</string>
+    <string name="label_local">Local history</string>
     <string name="label_back">To main activity</string>
     <string name="label_range">Set dates range</string>
     <string name="label_menu">Menu</string>

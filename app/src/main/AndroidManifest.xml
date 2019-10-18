@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="xyz.yaroslav.securitycontrolsystem">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -8,6 +9,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
+    <uses-feature android:name="android.hardware.nfc" android:required="true"/>
+
     <application
         android:allowBackup="true"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -15,13 +18,21 @@
         android:label="@string/app_name_short"
         android:roundIcon="@drawable/tag_icon"
         android:supportsRtl="true"
-        android:theme="@style/NabTheme">
-        <activity android:name=".MainActivity">
+        android:theme="@style/NabTheme"
+        tools:ignore="GoogleAppIndexingWarning">
+        <activity android:name="._MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <meta-data android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_filter"/>
         </activity>
     </application>
 

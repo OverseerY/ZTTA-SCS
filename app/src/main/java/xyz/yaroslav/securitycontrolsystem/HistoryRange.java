@@ -76,33 +76,15 @@ public class HistoryRange extends DialogFragment {
         startDate = view.findViewById(R.id.date_start);
         finishDate = view.findViewById(R.id.date_finish);
 
-        startDate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                setDate(startDate, 1);
-            }
-        });
+        startDate.setOnClickListener(view12 -> setDate(startDate, 1));
 
-        finishDate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                setDate(finishDate, 2);
-            }
-        });
+        finishDate.setOnClickListener(view1 -> setDate(finishDate, 2));
 
-        cancelButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                getDialog().dismiss();
-            }
-        });
+        cancelButton.setOnClickListener(v -> getDialog().dismiss());
 
-        okButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mListener.onDialogPositiveClick(requestTags());
-                getDialog().dismiss();
-            }
+        okButton.setOnClickListener(v -> {
+            mListener.onDialogPositiveClick(requestTags());
+            getDialog().dismiss();
         });
 
         return view;
@@ -142,16 +124,13 @@ public class HistoryRange extends DialogFragment {
     }
 
     private void setDate(final EditText editText, final int flag) {
-        DatePickerDialog dialog = new DatePickerDialog(getContext(), new DatePickerDialog.OnDateSetListener() {
-            @Override
-            public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
-                calendar = setDefaultTime(calendar);
-                calendar.set(Calendar.YEAR, year);
-                calendar.set(Calendar.MONTH, monthOfYear);
-                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+        DatePickerDialog dialog = new DatePickerDialog(getContext(), (view, year, monthOfYear, dayOfMonth) -> {
+            calendar = setDefaultTime(calendar);
+            calendar.set(Calendar.YEAR, year);
+            calendar.set(Calendar.MONTH, monthOfYear);
+            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
 
-                getDateInMilliseconds(editText, flag);
-            }
+            getDateInMilliseconds(editText, flag);
         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
         dialog.getDatePicker().setMaxDate(todayDate);
         dialog.show();
@@ -184,7 +163,7 @@ public class HistoryRange extends DialogFragment {
     }
 
     private String makeUrlWithDateParameters(long start, long end) {
-        return default_url + "?st=" + Long.toString(start) + "&et=" + Long.toString(end);
+        return default_url + "?st=" + start + "&et=" + end;
     }
 
     //#endregion

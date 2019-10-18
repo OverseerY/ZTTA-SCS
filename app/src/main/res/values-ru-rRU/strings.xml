@@ -5,6 +5,7 @@
     <string name="label_cancel">Отмена</string>
     <string name="label_ok">ОК</string>
     <string name="label_history">История</string>
+    <string name="label_local">История за сутки</string>
     <string name="label_back">На главную страницу</string>
     <string name="label_range">Установить временной диапазон</string>
     <string name="label_menu">Меню</string>

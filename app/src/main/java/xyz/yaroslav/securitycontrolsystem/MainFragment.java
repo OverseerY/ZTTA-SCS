@@ -1,8 +1,6 @@
 package xyz.yaroslav.securitycontrolsystem;
 
-import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
@@ -11,15 +9,12 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.PopupMenu;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import java.util.List;
-
 public class MainFragment extends Fragment {
-    private static final String temp_file = "recent.txt";
+    private static final String history_file = "recent.txt";
     ImageView historyIcon;
     ImageView settingsIcon;
 
@@ -42,7 +37,7 @@ public class MainFragment extends Fragment {
         settingsIcon = rootView.findViewById(R.id.menu_settings);
 
         historyIcon.setOnClickListener(v -> showHistoryFragment());
-        settingsIcon.setOnClickListener(v -> openFragmentPopUpMenu(v));
+        settingsIcon.setOnClickListener(this::openFragmentPopUpMenu);
 
         return rootView;
     }
@@ -54,7 +49,6 @@ public class MainFragment extends Fragment {
         ft.addToBackStack(null);
         ft.commit();
     }
-
 
     private void openFragmentPopUpMenu(View menu_item) {
         try {
@@ -80,7 +74,7 @@ public class MainFragment extends Fragment {
         builder.setMessage(getString(R.string.message_warning_delete));
         builder.setIcon(R.drawable.ic_warning);
         builder.setPositiveButton(getString(R.string.label_ok), (dialog, which) -> {
-            getContext().deleteFile(temp_file);
+            getContext().deleteFile(history_file);
             dialog.dismiss();
         });
 

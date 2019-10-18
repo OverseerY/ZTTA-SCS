@@ -11,13 +11,6 @@ import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcManager;
-import android.nfc.tech.IsoDep;
-import android.nfc.tech.MifareClassic;
-import android.nfc.tech.MifareUltralight;
-import android.nfc.tech.Ndef;
-import android.nfc.tech.NfcA;
-import android.nfc.tech.NfcB;
-import android.nfc.tech.NfcV;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -28,6 +21,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -50,15 +44,14 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity implements HistoryRange.HistoryRangeListener {
 
@@ -84,18 +77,6 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     private boolean isWhiteListExists = false;
 
     private Handler pHandler;
-
-    private final String[][] techList = new String[][] {
-            new String[] {
-                    NfcA.class.getName(),
-                    NfcB.class.getName(),
-                    NfcV.class.getName(),
-                    IsoDep.class.getName(),
-                    MifareClassic.class.getName(),
-                    MifareUltralight.class.getName(),
-                    Ndef.class.getName()
-            }
-    };
 
     //#endregion
 
@@ -127,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
         displayMainFragment();
 
-        new RenewLocalHistoryAsynkTask().execute();
+        new RenewLocalHistoryAsynkTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         testInternetState();
         testNfcState();
@@ -147,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         delayWhiteList();
         delayCache();
 
-        parseJsonFromFile();
+        new ParseJsonFromFileAsync().execute();
     }
 
     @Override
@@ -165,27 +146,20 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     private void delayCache() {
         final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                postHandler();
-            }
-        }, 10000);
+        handler.postDelayed(this::postHandler, 10000);
     }
 
     private void delayWhiteList() {
         final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    new LoadWhiteListTagsAsyncTask().execute(tags_url).get();
-                } catch (ExecutionException | InterruptedException e) {
-                    Log.e("WHITE_LIST", "AsyncTask while loading exception: " + e.getMessage());
-                }
+        handler.postDelayed(() -> {
+            try {
+                new LoadWhiteListTagsAsyncTask().execute(tags_url).get();
+            } catch (ExecutionException | InterruptedException e) {
+                Log.e("WHITE_LIST", "AsyncTask while loading exception: " + e.getMessage());
             }
         }, 2000);
     }
+
 
     //#endregion
 
@@ -194,8 +168,6 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     private void setOrientationToPortrait() {
         switch (getResources().getConfiguration().orientation){
             case Configuration.ORIENTATION_PORTRAIT:
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                break;
 
             case Configuration.ORIENTATION_LANDSCAPE:
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -226,7 +198,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 filter.addAction(NfcAdapter.ACTION_NDEF_DISCOVERED);
                 filter.addAction(NfcAdapter.ACTION_TECH_DISCOVERED);
                 nfcAdapter = NfcAdapter.getDefaultAdapter(getApplicationContext());
-                nfcAdapter.enableForegroundDispatch(this, pendingIntent, new IntentFilter[]{filter}, this.techList);
+                nfcAdapter.enableForegroundDispatch(this, pendingIntent, new IntentFilter[]{filter}, null /*this.techList*/);
             } catch (Exception e) {
                 Log.e("LISTEN_NFC", e.getLocalizedMessage());
             }
@@ -245,12 +217,9 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 } else {
                     statusColor = getResources().getColor(R.color.colorRed);
                 }
-                nfcHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        nfcLabel.setTextColor(statusColor);
-                        nfcIcon.setColorFilter(statusColor);
-                    }
+                nfcHandler.post(() -> {
+                    nfcLabel.setTextColor(statusColor);
+                    nfcIcon.setColorFilter(statusColor);
                 });
             }
         }, 0L, 5L * 1000);
@@ -269,12 +238,9 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                     } else {
                         textColor = getResources().getColor(R.color.colorRed);
                     }
-                    netHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            netLabel.setTextColor(textColor);
-                            netIcon.setColorFilter(textColor);
-                        }
+                    netHandler.post(() -> {
+                        netLabel.setTextColor(textColor);
+                        netIcon.setColorFilter(textColor);
                     });
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -295,49 +261,104 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        StringBuilder tag_data = new StringBuilder();
+
+        String tag_data = "";
         String tag_id = "";
-        long cur_time = System.currentTimeMillis();
 
         Parcelable[] data = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
-        if (data != null) {
-            try {
-                for (Parcelable aData : data) {
-                    NdefRecord[] recs = ((NdefMessage) aData).getRecords();
-                    for (NdefRecord rec : recs) {
-                        if (rec.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(rec.getType(), NdefRecord.RTD_TEXT)) {
-                            byte[] payload = rec.getPayload();
-                            String textEncoding = ((payload[0] & 128) == 0) ? "UTF-8" : "UTF-16";
-                            int langCodeLen = payload[0] & 63;
-                            tag_data.append(new String(payload, langCodeLen + 1, payload.length - langCodeLen - 1, textEncoding));
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                if (e.getMessage() != null) {
-                    Log.e("TAG_DISPATCH", e.getLocalizedMessage());
-                } else {
-                    e.printStackTrace();
-                }
-            }
+
+        try {
+            tag_data = new TagProcessingAsync().execute(data).get();
+        } catch (ExecutionException | InterruptedException e) {
+            Log.e("TAG_PROC_EXCEPTION", e.getMessage());
         }
+
         if (Objects.equals(intent.getAction(), NfcAdapter.ACTION_TAG_DISCOVERED)) {
             tag_id = ByteArrayToHexString(intent.getByteArrayExtra(NfcAdapter.EXTRA_ID));
         }
 
-        if (tag_data.length() > 0 && !tag_id.equals("")) {
-            if (isWhiteListExists) {
-                if (compareTag(tag_id, tag_data.toString())) {
-                    // saveData(tag_id, tag_data.toString(), getCurTime());
-                    saveData(tag_id, tag_data.toString(), String.valueOf(cur_time));
+        new TagCompareAsync().execute(tag_id, tag_data);
+    }
+
+    private class TagProcessingAsync extends AsyncTask<Parcelable, Integer, String> {
+        @Override
+        protected String doInBackground(Parcelable... data) {
+            StringBuilder tag_data = new StringBuilder();
+            if (data != null) {
+                try {
+                    for (Parcelable aData : data) {
+                        NdefRecord[] recs = ((NdefMessage) aData).getRecords();
+                        for (NdefRecord rec : recs) {
+                            if (rec.getTnf() == NdefRecord.TNF_WELL_KNOWN && Arrays.equals(rec.getType(), NdefRecord.RTD_TEXT)) {
+                                byte[] payload = rec.getPayload();
+                                String textEncoding = ((payload[0] & 128) == 0) ? "UTF-8" : "UTF-16";
+                                int langCodeLen = payload[0] & 63;
+                                tag_data.append(new String(payload, langCodeLen + 1, payload.length - langCodeLen - 1, textEncoding));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    if (e.getMessage() != null) {
+                        Log.e("TAG_DISPATCH", e.getLocalizedMessage());
+                    } else {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            if (tag_data.length() == 0) {
+                return "";
+            }
+            return tag_data.toString();
+        }
+    }
+
+    private class TagCompareAsync extends AsyncTask<String, Integer, Integer> {
+        @Override
+        protected Integer doInBackground(String... strings) {
+            String tag_id = strings[0];
+            String tag_data = strings[1];
+            long cur_time = System.currentTimeMillis();
+
+            if (!tag_id.equals("") && !tag_data.equals("")) {
+                if (isWhiteListExists) {
+                    if (compareTag(tag_id, tag_data)) {
+                        //saveData(tag_id, tag_data, String.valueOf(cur_time));
+                        String str = buidJsonObject(tag_id, tag_data, String.valueOf(cur_time)) + ";";
+                        writeToFile(str);
+                        return 0;
+                    } else {
+                        return 1;
+                    }
                 } else {
-                    autoCloseDialog(getString(R.string.label_unknown_tag), getString(R.string.message_unknown_tag), 3);
+                    return 2;
                 }
             } else {
-                autoCloseDialog(getString(R.string.label_compare_error), getString(R.string.message_white_list), 2);
+                return 3;
             }
-        } else {
-            autoCloseDialog(getString(R.string.label_error), getString(R.string.message_fail), 2);
+        }
+
+        @Override
+        protected void onPreExecute(){
+            progressBar.setVisibility(View.VISIBLE);
+        }
+
+        @Override
+        protected void onPostExecute(Integer value) {
+            switch (value) {
+                case 0:
+                    autoCloseDialog(getString(R.string.label_success), getString(R.string.message_success), 1);
+                    break;
+                case 1:
+                    autoCloseDialog(getString(R.string.label_unknown_tag), getString(R.string.message_unknown_tag), 3);
+                    break;
+                case 2:
+                    autoCloseDialog(getString(R.string.label_compare_error), getString(R.string.message_white_list), 2);
+                    break;
+                default:
+                    autoCloseDialog(getString(R.string.label_error), getString(R.string.message_fail), 2);
+                    break;
+            }
+            progressBar.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -362,23 +383,10 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
     //#region Save tag
 
     private void saveData(String uid, String payload, String time) {
-        try {
-            String value = uid + "," + payload + "," + time;
-            String result = new HTTPAsyncTask().execute(value).get();
-            String str = buidJsonObject(uid, payload, time) + ";";
-            saveToShortHistoryFile(str);
-            if (!result.equals("OK")) {
-                if (!str.equals("")) {
-                    writeToFile(str, payload, true);
-                } else {
-                    autoCloseDialog(getString(R.string.label_error), getString(R.string.message_fail), 2);
-                }
-            } else {
-                autoCloseDialog(payload, getString(R.string.message_success), 1);
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            Log.e("SAVE_TAG", "AsyncTask exception: " + e.getMessage());
-        }
+        String value = uid + "," + payload + "," + time;
+        String str = buidJsonObject(uid, payload, time) + ";";
+        new HTTPAsyncTask().execute(value);
+        writeToFile(str);
     }
 
     private void autoCloseDialog(String title, String message, int iconType) {
@@ -417,19 +425,11 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     }
 
-    private String getCurTime() {
-        long value = System.currentTimeMillis();
-        return String.valueOf(value);
-    }
-
-    private void writeToFile(String data, String tagName, boolean flag) {
+    private void writeToFile(String data) {
         try {
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(fileName, Context.MODE_APPEND));
             outputStreamWriter.write(data);
             outputStreamWriter.close();
-            if (flag) {
-                autoCloseDialog(tagName, getString(R.string.message_success), 1);
-            }
         }
         catch (IOException e) {
             Log.e("Exception", "File write failed: " + e.toString());
@@ -560,7 +560,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 try {
                     String result = new PingAsyncTask().execute(default_url).get();
                     if (result.equals("OK")) {
-                        getTagsFromFile();
+                        new RetrieveSavedTagsAsync().execute();
                     }
                 } catch (ExecutionException | InterruptedException e) {
                     Log.e("PING_SERVER", "AsyncTask exception: " + e.getMessage());
@@ -573,33 +573,37 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         pHandler.sendEmptyMessage(0);
     }
 
-    private void getTagsFromFile() {
-        String tmp = readDataFromFile();
-        String[] arr = tmp.split(";");
-        if (arr.length > 0) {
-            ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
-            ArrayList<String> temp = new ArrayList<>(Arrays.asList(arr));
-            for (String s : list) {
+    private class RetrieveSavedTagsAsync extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... voids) {
+            String tmp = readDataFromFile();
+            String[] arr = tmp.split(";");
+            if (arr.length > 0) {
+                ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
+                ArrayList<String> temp = new ArrayList<>(Arrays.asList(arr));
+                for (String s : list) {
+                    try {
+                        String result = new SendSavedTagAsynkTask().execute(s).get();
+                        if (result.equals("OK")) {
+                            temp.remove(s);
+                        }
+                    } catch (ExecutionException | InterruptedException e) {
+                        Log.e("SAVED_TAGS", "AsyncTask exception: " + e.getMessage());
+                    }
+                }
                 try {
-                    String result = new SendSavedTagAsynkTask().execute(s).get();
-                    if (result.equals("OK")) {
-                        temp.remove(s);
+                    deleteFile();
+                    if (temp.size() > 0) {
+                        for (String str : temp) {
+                            str += ";";
+                            writeToFile(str);
+                        }
                     }
-                } catch (ExecutionException | InterruptedException e) {
-                    Log.e("SAVED_TAGS", "AsyncTask exception: " + e.getMessage());
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
-            try {
-                deleteFile();
-                if (temp.size() > 0) {
-                    for (String str : temp) {
-                        str += ";";
-                        writeToFile(str, "",false);
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            return null;
         }
     }
 
@@ -687,37 +691,33 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     //#region White list of Tags
 
-    private class LoadWhiteListTagsAsyncTask extends AsyncTask<String, Void, String> {
+    private class LoadWhiteListTagsAsyncTask extends AsyncTask<String, Void, Void> {
         @Override
-        protected String doInBackground(String... strings) {
-            getWhiteListJson(strings[0]);
-            return "";
-        }
-    }
+        protected Void doInBackground(String... strings) {
+            try {
+                URL url = new URL(strings[0]);
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
 
-    private void getWhiteListJson(String srv_url) {
-        try {
-            URL url = new URL(srv_url);
-            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                InputStream stream = new BufferedInputStream(urlConnection.getInputStream());
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
+                StringBuilder builder = new StringBuilder();
 
-            InputStream stream = new BufferedInputStream(urlConnection.getInputStream());
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
-            StringBuilder builder = new StringBuilder();
+                String inputString ;
 
-            String inputString ;
+                while ((inputString = bufferedReader.readLine()) != null) {
+                    builder.append(inputString);
+                }
 
-            while ((inputString = bufferedReader.readLine()) != null) {
-                builder.append(inputString);
+                urlConnection.disconnect();
+
+                if (!builder.toString().equals(readWhiteListFromFile())) {
+                    saveWhiteList(builder.toString());
+                }
+
+            } catch (IOException e) {
+                Log.e("WHITE_LIST", "IO Exception: " + e.getMessage());
             }
-
-            urlConnection.disconnect();
-
-            if (!builder.toString().equals(readWhiteListFromFile())) {
-                saveWhiteList(builder.toString());
-            }
-
-        } catch (IOException e) {
-            Log.e("WHITE_LIST", "IO Exception: " + e.getMessage());
+            return null;
         }
     }
 
@@ -761,34 +761,38 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         return ret;
     }
 
-    private void parseJsonFromFile() {
-        try {
-            String jsonString = readWhiteListFromFile();
-            JSONObject topLevel = new JSONObject(jsonString);
-            JSONArray jArray = topLevel.getJSONArray("tags");
+    private class ParseJsonFromFileAsync extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                String jsonString = readWhiteListFromFile();
+                JSONObject topLevel = new JSONObject(jsonString);
+                JSONArray jArray = topLevel.getJSONArray("tags");
 
-            white_list.clear();
+                white_list.clear();
 
-            for (int i = 0; i < jArray.length(); i++) {
-                String tagName;
-                String tagUid ;
-                try {
-                    JSONObject nestedObject = jArray.getJSONObject(i);
-                    tagName = String.valueOf(nestedObject.getString("tag_data"));
-                    tagUid = String.valueOf(nestedObject.getString("tag_id"));
+                for (int i = 0; i < jArray.length(); i++) {
+                    String tagName;
+                    String tagUid ;
+                    try {
+                        JSONObject nestedObject = jArray.getJSONObject(i);
+                        tagName = String.valueOf(nestedObject.getString("tag_data"));
+                        tagUid = String.valueOf(nestedObject.getString("tag_id"));
 
-                    Map<String,Object> tagItem = new TagItem(tagUid, tagName).toWhiteListMap();
-                    white_list.add(tagItem);
-                } catch (JSONException e) {
-                    Log.e("WHITE_LIST", "JSON Exception: " + e.getMessage());
+                        Map<String,Object> tagItem = new TagItem(tagUid, tagName).toWhiteListMap();
+                        white_list.add(tagItem);
+                    } catch (JSONException e) {
+                        Log.e("WHITE_LIST", "JSON Exception: " + e.getMessage());
+                    }
                 }
-            }
 
-            if (white_list.size() > 0) {
-                isWhiteListExists = true;
+                if (white_list.size() > 0) {
+                    isWhiteListExists = true;
+                }
+            } catch (JSONException e) {
+                Log.e("WHITE_LIST", "JSON Parse Exception: " + e.getMessage());
             }
-        } catch (JSONException e) {
-            Log.e("WHITE_LIST", "JSON Parse Exception: " + e.getMessage());
+            return null;
         }
     }
 
@@ -801,22 +805,32 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
 
     //#region Local history
 
-    private class RenewLocalHistoryAsynkTask extends AsyncTask<String, Void, String> {
+    private class RenewLocalHistoryAsynkTask extends AsyncTask<Void, Void, Void> {
         @Override
-        protected String doInBackground(String... strings) {
-            removeExpiredTags();
-            return "";
-        }
-    }
-
-    private void saveToShortHistoryFile(String data) {
-        try {
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(shortList, Context.MODE_APPEND));
-            outputStreamWriter.write(data);
-            outputStreamWriter.close();
-        }
-        catch (IOException e) {
-            Log.e("SHORT_LIST", "Write to file failed: " + e.toString());
+        protected Void doInBackground(Void... voids) {
+            String tmp = readHistoryFromFile();
+            if (!tmp.equals("")) {
+                String[] arr = tmp.split(";");
+                if (arr.length > 0) {
+                    List<String> temp = new ArrayList<>();
+                    ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
+                    for (String str : list) {
+                        try {
+                            JSONObject jsonObject = new JSONObject(str);
+                            String tagTime = String.valueOf(jsonObject.getString("tag_time"));
+                            if (checkTagRecency(tagTime)) {
+                                temp.add(str + ";");
+                            }
+                        } catch (JSONException e) {
+                            Log.e("JSON_PARSE", e.getMessage());
+                        }
+                    }
+                    rewriteHistoryFile(temp);
+                }
+            } else {
+                Log.e("HISTORY_FILE", "Empty response");
+            }
+            return null;
         }
     }
 
@@ -844,8 +858,7 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 inputStream.close();
                 ret = stringBuilder.toString();
             }
-        }
-        catch (FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             Log.e("HISTORY_FILE", "File not found: " + e.getMessage());
         } catch (IOException e) {
             Log.e("HISTORY_FILE", "IO Exception: " + e.getMessage());
@@ -854,32 +867,10 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
         return ret;
     }
 
-    private void removeExpiredTags() {
-        String tmp = readHistoryFromFile();
-        String[] arr = tmp.split(";");
-        if (arr.length > 0) {
-            List<String> temp = new ArrayList<>();
-            ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
-            for (String str : list) {
-                try {
-                    JSONObject jsonObject = new JSONObject(str);
-                    String tagTime = String.valueOf(jsonObject.getString("tag_time"));
-                    Log.i("TEST_SHOW_TIME", tagTime);
-                    if (checkTagRecency(tagTime)) {
-                        temp.add(str + ";");
-                    }
-                } catch (JSONException e) {
-                    Log.e("JSON_PARSE", e.getMessage());
-                }
-            }
-            rewriteHistoryFile(temp);
-        }
-    }
-
     private void rewriteHistoryFile(List<String> values)  {
         getApplicationContext().deleteFile(shortList);
         for (String value : values) {
-            saveToShortHistoryFile(value);
+            writeToFile(value);
         }
     }
 
