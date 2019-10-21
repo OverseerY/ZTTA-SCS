@@ -3,11 +3,13 @@ package xyz.yaroslav.securitycontrolsystem;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.text.format.DateUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,11 +21,19 @@ import android.widget.EditText;
 import java.util.Calendar;
 import java.util.Date;
 
+import static android.content.Context.MODE_PRIVATE;
+
 public class HistoryRange extends DialogFragment {
 
     //#region Variables
 
-    private static final String default_url = "http://192.168.0.14:5002/events";
+    SharedPreferences appPreferences;
+
+    public static final String APP_PREFERENCES = "ApplicationPreferences";
+    public static final String SRV_PROTOCOL = "srv_protocol"; //http
+    public static final String SRV_ADDRESS = "srv_address"; //192.168.0.14
+    public static final String SRV_PORT = "srv_port"; //5002
+    public static final String SRV_POSTFIX_EVENTS = "srv_postfix_events"; //events?st=&et=
 
     EditText startDate;
     EditText finishDate;
@@ -37,7 +47,7 @@ public class HistoryRange extends DialogFragment {
     private long endTimeMsec = 0;
 
     public interface HistoryRangeListener {
-        public void onDialogPositiveClick(String url);
+        void onDialogPositiveClick(String url);
     }
 
     HistoryRangeListener mListener;
@@ -68,6 +78,8 @@ public class HistoryRange extends DialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_range, container, false);
+
+        appPreferences = getActivity().getSharedPreferences(APP_PREFERENCES, MODE_PRIVATE);
 
         calendar = Calendar.getInstance();
 
@@ -163,7 +175,18 @@ public class HistoryRange extends DialogFragment {
     }
 
     private String makeUrlWithDateParameters(long start, long end) {
-        return default_url + "?st=" + start + "&et=" + end;
+        String protocol = appPreferences.getString(SRV_PROTOCOL, "http");
+        String address = appPreferences.getString(SRV_ADDRESS, "192.168.0.14");
+        String port = appPreferences.getString(SRV_PORT, "5002");
+        String postfix_history = appPreferences.getString(SRV_POSTFIX_EVENTS, "events?st=&et=");
+
+        assert postfix_history != null;
+        String[] first = postfix_history.split("\\?");
+        String[] second = first[1].split("&");
+
+        String url = protocol + "://" + address + ":" + port + "/" + first[0] + getString(R.string.char_question) + second[0] + start + getString(R.string.char_ampersand) + second[1] + end;
+
+        return url;
     }
 
     //#endregion

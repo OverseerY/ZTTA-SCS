@@ -4,6 +4,8 @@
 
     <string name="label_cancel">Cancel</string>
     <string name="label_ok">OK</string>
+    <string name="label_save">Save</string>
+    <string name="label_defaults">Defaults</string>
     <string name="label_history">History</string>
     <string name="label_local">Local history</string>
     <string name="label_back">To main activity</string>
@@ -21,6 +23,15 @@
     <string name="label_compare_error">Unable to compare</string>
     <string name="label_unknown_tag">Unknown tag</string>
     <string name="label_clear_file">Clear local history</string>
+    <string name="label_clear_temp">Clear temporary file</string>
+
+    <string name="label_pref_title">Preferences</string>
+    <string name="label_pref_protocol">Protocol</string>
+    <string name="label_pref_address">Address</string>
+    <string name="label_pref_port">Port</string>
+    <string name="label_pref_postfix_add">Postfix Add new</string>
+    <string name="label_pref_postfix_tags">Postfix Whitelist</string>
+    <string name="label_pref_postfix_events">Postfix History</string>
 
     <string name="hint_begin">Begin</string>
     <string name="hint_end">End</string>
@@ -30,5 +41,14 @@
     <string name="message_error">Some errors occurred. Restart application, check wi-fi connection and try again</string>
     <string name="message_white_list">Unable to check tag with white-listed. Check network connection and reload the application</string>
     <string name="message_unknown_tag">Scanned tag does not valid</string>
-    <string name="message_warning_delete">This action will delete local file with scanned tags for a day. Proceed?</string>
+    <string name="message_warning_delete_history">This action will delete local file with scanned tags for a day. Proceed?</string>
+    <string name="message_warning_delete_temp">This action will delete local file with unsent tags saved offline. Proceed?</string>
+    <string name="message_warning_delete_file">This action will delete local file. Proceed?</string>
+    <string name="toast_msg_empty_history">History file is empty or does not exist</string>
+    <string name="toast_msg_empty_temp">Temporary file is empty or does not exist</string>
+    <string name="toast_msg_empty_response">Unable to load history</string>
+    <string name="toast_empty_fields">Empty fields are not allowed</string>
+
+    <string name="char_question" translatable="false">\?</string>
+    <string name="char_ampersand" translatable="false">\u0026</string>
 </resources>

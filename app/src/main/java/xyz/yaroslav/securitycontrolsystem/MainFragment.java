@@ -1,20 +1,18 @@
 package xyz.yaroslav.securitycontrolsystem;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.PopupMenu;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import java.util.Objects;
+
 public class MainFragment extends Fragment {
-    private static final String history_file = "recent.txt";
     ImageView historyIcon;
     ImageView settingsIcon;
 
@@ -37,7 +35,10 @@ public class MainFragment extends Fragment {
         settingsIcon = rootView.findViewById(R.id.menu_settings);
 
         historyIcon.setOnClickListener(v -> showHistoryFragment());
-        settingsIcon.setOnClickListener(this::openFragmentPopUpMenu);
+        settingsIcon.setOnClickListener(v -> {
+            DialogFragment dialogFragment = new PreferencesFragment();
+            dialogFragment.show(Objects.requireNonNull(getActivity()).getSupportFragmentManager(), "PREFERENCES");
+        });
 
         return rootView;
     }
@@ -48,40 +49,6 @@ public class MainFragment extends Fragment {
         ft.replace(R.id.fragment_container, fragment);
         ft.addToBackStack(null);
         ft.commit();
-    }
-
-    private void openFragmentPopUpMenu(View menu_item) {
-        try {
-            Context context = getContext();
-            assert context != null;
-            PopupMenu popup = new PopupMenu(context, menu_item);
-            popup.inflate(R.menu.settings_menu);
-            popup.setOnMenuItemClickListener(item -> {
-                if (item.getItemId() == R.id.clear_file) {
-                    warningDialog();
-                }
-                return false;
-            });
-            popup.show();
-        } catch (NullPointerException e) {
-            Log.e("GET_CTX", e.getMessage());
-        }
-    }
-
-    private void warningDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle(getString(R.string.label_warning));
-        builder.setMessage(getString(R.string.message_warning_delete));
-        builder.setIcon(R.drawable.ic_warning);
-        builder.setPositiveButton(getString(R.string.label_ok), (dialog, which) -> {
-            getContext().deleteFile(history_file);
-            dialog.dismiss();
-        });
-
-        builder.setNegativeButton(getString(R.string.label_cancel), (dialog, which) -> dialog.dismiss());
-
-        final AlertDialog closedialog = builder.create();
-        closedialog.show();
     }
 }
 

@@ -1,5 +1,6 @@
 package xyz.yaroslav.securitycontrolsystem;
 
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -12,10 +13,18 @@ import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcManager;
+import android.nfc.tech.IsoDep;
+import android.nfc.tech.MifareClassic;
+import android.nfc.tech.MifareUltralight;
+import android.nfc.tech.Ndef;
+import android.nfc.tech.NfcA;
+import android.nfc.tech.NfcB;
+import android.nfc.tech.NfcV;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Message;
 import android.os.Parcelable;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AlertDialog;
@@ -52,6 +61,9 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 
 public class _MainActivity extends AppCompatActivity implements HistoryRange.HistoryRangeListener {
+
+    //#region Variables
+
     public static final String APP_PREFERENCES = "ApplicationPreferences";
     public static final String SRV_PROTOCOL = "srv_protocol"; //http
     public static final String SRV_ADDRESS = "srv_address"; //192.168.0.14
@@ -97,6 +109,20 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
     private HandlerThread sendTagsWhenOnline;
     private Handler sendTagsOnlineHandler;
 
+    private final String[][] techList = new String[][] {
+            new String[] {
+                    NfcA.class.getName(),
+                    NfcB.class.getName(),
+                    NfcV.class.getName(),
+                    IsoDep.class.getName(),
+                    MifareClassic.class.getName(),
+                    MifareUltralight.class.getName(),
+                    Ndef.class.getName()
+            }
+    };
+
+    //#endregion
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setScreenOrientationToPortrait();
@@ -134,10 +160,6 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
         updateTagsInHistory = new HandlerThread("UpdateTagsHistory");
         updateTagsInHistory.start();
         updateTagsHandler = new Handler(updateTagsInHistory.getLooper());
-
-        sendTagsWhenOnline = new HandlerThread("SendTagsWhenOnline");
-        sendTagsWhenOnline.start();
-        sendTagsOnlineHandler = new Handler(sendTagsWhenOnline.getLooper());
     }
 
     @Override
@@ -154,7 +176,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
         loadWhiteListFromServer();
         parseWhiteListJsonFromFile();
         updateLocalHistory();
-        sendSavedOfllineTags();
+        tryToSendSavedTags();
     }
 
     @Override
@@ -200,7 +222,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
                     nfcIcon.setColorFilter(statusColor);
                 });
             }
-        }, 0L, 5L * 1000);
+        }, 0L, 3L * 1000);
     }
 
     public void checkInternetState() {
@@ -259,7 +281,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
                 filter.addAction(NfcAdapter.ACTION_NDEF_DISCOVERED);
                 filter.addAction(NfcAdapter.ACTION_TECH_DISCOVERED);
                 nfcAdapter = NfcAdapter.getDefaultAdapter(getApplicationContext());
-                nfcAdapter.enableForegroundDispatch(this, pendingIntent, new IntentFilter[]{filter}, null /*this.techList*/);
+                nfcAdapter.enableForegroundDispatch(this, pendingIntent, new IntentFilter[]{filter}, this.techList);
             } catch (Exception e) {
                 Log.e("LISTEN_NFC", e.getLocalizedMessage());
             }
@@ -371,7 +393,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
             }
 
 
-            Map flag_name = new HashMap<>();
+            @SuppressLint("UseSparseArrays") Map<Integer, String> flag_name = new HashMap<>();
 
             if (!tag_id.equals("") && !tag_data.equals("")) {
                 if (isWhiteListExists) {
@@ -487,7 +509,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
             } catch (IOException e) {
                 Log.e("WHITE_LIST", "IO Exception: " + e.getMessage());
             }
-        }, 1500);
+        }, 1000);
     }
 
     private void parseWhiteListJsonFromFile() {
@@ -589,6 +611,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
                 URL url = new URL(strings[0]);
 
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 
@@ -603,19 +626,27 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
 
                     conn.connect();
                     if (conn.getResponseCode() != 200) {
-                        try {
-                            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(cache_file, Context.MODE_APPEND));
-                            outputStreamWriter.write(jsonObject.toString());
-                            outputStreamWriter.close();
-                        } catch (IOException e) {
-                            Log.e("Exception", "File write failed: " + e.toString());
-                        }
+                        writeTagToTempFile(strings[1], strings[2], strings[3]);
                     }
                 }
             } catch (IOException e) {
                 Log.e("HTTP_POST", "IO Exception: " + e.getMessage());
+                writeTagToTempFile(strings[1], strings[2], strings[3]);
             }
             return null;
+        }
+    }
+
+    private void writeTagToTempFile(String tag_id, String tag_data, String timestamp) {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(openFileOutput(cache_file, Context.MODE_APPEND));
+            JSONObject jsonObject = buidJsonObject(tag_id, tag_data, timestamp);
+            assert jsonObject != null;
+            outputStreamWriter.write(jsonObject.toString() + ";");
+            outputStreamWriter.close();
+            Log.i("WRITE_TEMP", jsonObject.toString());
+        } catch (IOException ex) {
+            Log.e("Exception", "File write failed: " + ex.toString());
         }
     }
 
@@ -705,40 +736,97 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
 
     //#region Send Saved offline Tags
 
-    private void sendSavedOfllineTags() {
-        sendTagsOnlineHandler.postDelayed(() -> {
-            String tmp = readCacheFile();
-            String[] arr = tmp.split(";");
-            if (arr.length > 0) {
-                ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
-                ArrayList<String> temp = new ArrayList<>(Arrays.asList(arr));
-                for (String s : list) {
+    private void tryToSendSavedTags() {
+        final Handler handler = new Handler();
+        handler.postDelayed(() -> {
+            sendTagsWhenOnline = new HandlerThread("SendTagsWhenOnline");
+            sendTagsWhenOnline.start();
+            sendTagsOnlineHandler = new Handler(sendTagsWhenOnline.getLooper()) {
+                @Override
+                public void handleMessage(Message msg) {
+                    super.handleMessage(msg);
                     try {
-                        URL url = new URL(buildUrl(postfix_new));
-
-                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                        conn.setRequestMethod("POST");
-                        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-
-                        OutputStream os = conn.getOutputStream();
-                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8));
-                        writer.write(s);
-                        writer.flush();
-                        writer.close();
-                        os.close();
-
-                        conn.connect();
-
-                        if (conn.getResponseCode() == 200) {
-                            temp.remove(s);
+                        Integer result = new PingAsyncTask().execute(buildUrl(postfix_whitelist)).get();
+                        if (result.equals(200)) {
+                            sendSavedOfllineTags();
                         }
-                    } catch (IOException e) {
-                        Log.e("SAVED_TAGS", "AsyncTask exception: " + e.getMessage());
+                    } catch (ExecutionException | InterruptedException e) {
+                        Log.e("PING_SERVER", "AsyncTask exception: " + e.getMessage());
                     }
+                    sendTagsOnlineHandler.sendEmptyMessageDelayed(0, 60 * 1000);
                 }
-                rewriteCacheFile(temp);
+            };
+            sendTagsOnlineHandler.sendEmptyMessage(0);
+        }, 10000);
+    }
+
+    private class PingAsyncTask extends AsyncTask<String, Void, Integer> {
+        @Override
+        protected Integer doInBackground(String... urls) {
+            try {
+                URL url = new URL(urls[0]);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                return conn.getResponseCode();
+            } catch (IOException e) {
+                Log.e("PING_SERVER", "IO Exception: " + e.getMessage());
             }
-        }, 4000);
+            return 0;
+        }
+
+        @Override
+        protected void onPostExecute(Integer result) {
+            super.onPostExecute(result);
+            Log.i("PING", result.toString());
+        }
+    }
+
+    private void sendSavedOfllineTags() {
+        String tmp = readCacheFile();
+        String[] arr = tmp.split(";");
+        if (arr.length > 0) {
+            ArrayList<String> list = new ArrayList<>(Arrays.asList(arr));
+            ArrayList<String> temp = new ArrayList<>(Arrays.asList(arr));
+            for (String s : list) {
+                try {
+                    Integer result = new SendSavedTagToServerAsync().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, buildUrl(postfix_new), s).get();
+                    if (result == 200) {
+                        temp.remove(s);
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    Log.e("SAVED_TAGS", "AsyncTask exception: " + e.getMessage());
+                }
+            }
+            rewriteCacheFile(temp);
+        }
+    }
+
+    private class SendSavedTagToServerAsync extends AsyncTask<String, Void, Integer> {
+        @Override
+        protected Integer doInBackground(String... strings) {
+            try {
+                URL url = new URL(strings[0]);
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+
+                if (strings[1] != null) {
+                    OutputStream os = conn.getOutputStream();
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8));
+                    writer.write(strings[1]);
+                    writer.flush();
+                    writer.close();
+                    os.close();
+
+                    conn.connect();
+                    return conn.getResponseCode();
+                }
+            } catch (IOException e) {
+                Log.e("HTTP_POST", "IO Exception: " + e.getMessage());
+            }
+            return 0;
+        }
     }
 
     private String readCacheFile() {

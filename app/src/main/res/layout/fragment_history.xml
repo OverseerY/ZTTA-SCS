@@ -60,6 +60,16 @@
                 app:srcCompat="@drawable/ic_daterange"
                 android:contentDescription="@string/label_range"/>
 
+            <ImageView
+                android:id="@+id/menu_additional"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="5dp"
+                app:srcCompat="@drawable/ic_settings"
+                android:contentDescription="@string/label_menu"/>
+
         </LinearLayout>
 
         <LinearLayout

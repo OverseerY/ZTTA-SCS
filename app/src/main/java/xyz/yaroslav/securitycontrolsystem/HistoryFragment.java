@@ -1,5 +1,6 @@
 package xyz.yaroslav.securitycontrolsystem;
 
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -8,8 +9,10 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.PopupMenu;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -17,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -43,6 +47,7 @@ public class HistoryFragment extends Fragment{
     ImageView rangeIcon;
     ImageView backIcon;
     ImageView localIcon;
+    ImageView actionsMoreIcon;
     ProgressBar progressBar;
 
     private String url_with_range;
@@ -80,6 +85,7 @@ public class HistoryFragment extends Fragment{
         rangeIcon = rootView.findViewById(R.id.menu_daterange);
         backIcon = rootView.findViewById(R.id.menu_back);
         localIcon = rootView.findViewById(R.id.menu_local_history);
+        actionsMoreIcon = rootView.findViewById(R.id.menu_additional);
         progressBar = rootView.findViewById(R.id.history_progressbar);
         historyRecyclerView = rootView.findViewById(R.id.history_tags);
 
@@ -103,9 +109,9 @@ public class HistoryFragment extends Fragment{
             ft.commit();
         });
 
-        localIcon.setOnClickListener(v -> {
-            new ShowTempAsync().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        });
+        localIcon.setOnClickListener(v -> new ShowTempAsync().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR));
+
+        actionsMoreIcon.setOnClickListener(this::openFragmentPopUpMenu);
 
         return rootView;
     }
@@ -114,6 +120,12 @@ public class HistoryFragment extends Fragment{
     public void onResume() {
         super.onResume();
         new ShowHistoryAsync().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
     }
 
     public void setUrl(String url_with_range) {
@@ -169,6 +181,7 @@ public class HistoryFragment extends Fragment{
             if (flag == 0) {
                 showLocalTags();
             } else {
+                //Toast.makeText(getContext(), getString(R.string.toast_msg_empty_history), Toast.LENGTH_SHORT).show();
                 showTagsFromServer();
             }
         }
@@ -205,6 +218,8 @@ public class HistoryFragment extends Fragment{
                     historyRecyclerView.setLayoutManager(layoutManager);
                     historyRecyclerView.setItemAnimator(new DefaultItemAnimator());
                     historyRecyclerView.setAdapter(tagAdapter);
+                } else {
+                    Toast.makeText(getContext(), getString(R.string.toast_msg_empty_response), Toast.LENGTH_SHORT).show();
                 }
             } catch (ExecutionException | InterruptedException e) {
                 Log.e("JSON_PARSE", "Exception - Parsing JSON from server");
@@ -233,7 +248,7 @@ public class HistoryFragment extends Fragment{
             }
         }
         catch (FileNotFoundException e) {
-            Log.e("HISTORY_FILE", "File not found: " + e.getMessage());
+            Log.e("LOCAL_FILE", "File <" + filename + "> not found: " + e.getMessage());
         } catch (IOException e) {
             Log.e("HISTORY_FILE", "IO Exception: " + e.getMessage());
         }
@@ -319,7 +334,7 @@ public class HistoryFragment extends Fragment{
 
                             tagFromTempList.add(tagItem);
                         } catch (JSONException e) {
-                            Log.e("HISTORY_FILE", "JSON Exception in " + "(" + e.getClass() + "): " + e.getMessage());
+                            Log.e("TEMP_FILE", "JSON Exception in " + "(" + e.getClass() + "): " + e.getMessage());
                         }
                     }
                     if (!tagFromTempList.isEmpty()) {
@@ -339,6 +354,9 @@ public class HistoryFragment extends Fragment{
         protected void onPostExecute(Integer flag) {
             if (flag == 0) {
                 showTempTags();
+            } else {
+                Toast.makeText(getContext(), getString(R.string.toast_msg_empty_temp), Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.INVISIBLE);
             }
         }
     }
@@ -357,4 +375,76 @@ public class HistoryFragment extends Fragment{
     }
 
     //#endregion
+
+    //#region Menu
+
+    private void openFragmentPopUpMenu(View menu_item) {
+        try {
+            Context context = getContext();
+            assert context != null;
+            PopupMenu popup = new PopupMenu(context, menu_item);
+            popup.inflate(R.menu.settings_menu);
+            popup.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == R.id.clear_file) {
+                    warningDialog(history_file, 1);
+                } else if (item.getItemId() == R.id.clear_temp_file) {
+                    warningDialog(temp_file, 2);
+                }
+                return false;
+            });
+            popup.show();
+        } catch (NullPointerException e) {
+            Log.e("GET_CTX", e.getMessage());
+        }
+    }
+
+    private void warningDialog(String file_name, Integer type) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle(getString(R.string.label_warning));
+        if (type == 1) {
+            builder.setMessage(getString(R.string.message_warning_delete_history));
+        } else if (type == 2) {
+            builder.setMessage(getString(R.string.message_warning_delete_temp));
+        } else {
+            builder.setMessage(getString(R.string.message_warning_delete_file));
+        }
+        builder.setIcon(R.drawable.ic_warning);
+        builder.setPositiveButton(getString(R.string.label_ok), (dialog, which) -> {
+            getContext().deleteFile(file_name);
+            dialog.dismiss();
+        });
+
+        builder.setNegativeButton(getString(R.string.label_cancel), (dialog, which) -> dialog.dismiss());
+
+        final AlertDialog closedialog = builder.create();
+        closedialog.show();
+    }
+
+    //#endregion
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
