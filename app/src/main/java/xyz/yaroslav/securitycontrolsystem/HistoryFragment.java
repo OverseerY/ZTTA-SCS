@@ -1,6 +1,7 @@
 package xyz.yaroslav.securitycontrolsystem;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,9 +41,19 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
+import static android.content.Context.MODE_PRIVATE;
+
 public class HistoryFragment extends Fragment{
 
     //#region Variables
+
+    SharedPreferences appPreferences;
+
+    public static final String APP_PREFERENCES = "ApplicationPreferences";
+    public static final String SRV_PROTOCOL = "srv_protocol"; //http
+    public static final String SRV_ADDRESS = "srv_address"; //192.168.0.14
+    public static final String SRV_PORT = "srv_port"; //5002
+    public static final String SRV_POSTFIX_EVENTS = "srv_postfix_events"; //events?st=&et=
 
     ImageView rangeIcon;
     ImageView backIcon;
@@ -52,7 +63,6 @@ public class HistoryFragment extends Fragment{
 
     private String url_with_range;
 
-    private static final String default_url = "http://192.168.0.14:5002/events?st=&et=";
     private static final String history_file = "recent.txt";
     private static final String temp_file = "temp.txt";
 
@@ -81,6 +91,8 @@ public class HistoryFragment extends Fragment{
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_history, container, false);
+
+        appPreferences = getActivity().getSharedPreferences(APP_PREFERENCES, MODE_PRIVATE);
 
         rangeIcon = rootView.findViewById(R.id.menu_daterange);
         backIcon = rootView.findViewById(R.id.menu_back);
@@ -200,12 +212,21 @@ public class HistoryFragment extends Fragment{
         }, 500);
     }
 
+    private String buildUrl() {
+        String protocol = appPreferences.getString(SRV_PROTOCOL, "http");
+        String address = appPreferences.getString(SRV_ADDRESS, "192.168.0.14");
+        String port = appPreferences.getString(SRV_PORT, "5002");
+        String postfix_history = appPreferences.getString(SRV_POSTFIX_EVENTS, "events?st=&et=");
+
+        return protocol + "://" + address + ":" + port + "/" + postfix_history;
+    }
+
     private void showTagsFromServer() {
         final Handler handler = new Handler();
         handler.postDelayed(() -> {
             String url;
             if (url_with_range == null || url_with_range.equals("")) {
-                url = default_url;
+                url = buildUrl();
             } else {
                 url = url_with_range;
             }

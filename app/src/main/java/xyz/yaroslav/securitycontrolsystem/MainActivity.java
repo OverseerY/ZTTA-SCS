@@ -60,7 +60,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 
-public class _MainActivity extends AppCompatActivity implements HistoryRange.HistoryRangeListener {
+public class MainActivity extends AppCompatActivity implements HistoryRange.HistoryRangeListener {
 
     //#region Variables
 
@@ -290,7 +290,7 @@ public class _MainActivity extends AppCompatActivity implements HistoryRange.His
 
     private void autoCloseDialog(String title, String message, int iconType) {
         AlertDialog.Builder builder = new AlertDialog.Builder(
-                _MainActivity.this);
+                MainActivity.this);
         builder.setTitle(title);
         builder.setMessage(message);
         switch (iconType) {

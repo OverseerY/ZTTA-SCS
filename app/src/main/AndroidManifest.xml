@@ -20,7 +20,7 @@
         android:supportsRtl="true"
         android:theme="@style/NabTheme"
         tools:ignore="GoogleAppIndexingWarning">
-        <activity android:name="._MainActivity">
+        <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
