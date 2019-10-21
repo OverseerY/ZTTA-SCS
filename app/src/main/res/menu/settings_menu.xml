@@ -3,4 +3,7 @@
     <item
         android:id="@+id/clear_file"
         android:title="@string/label_clear_file" />
+    <item
+        android:id="@+id/clear_temp_file"
+        android:title="@string/label_clear_temp"/>
 </menu>
