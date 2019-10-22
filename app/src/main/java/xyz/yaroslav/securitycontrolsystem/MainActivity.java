@@ -482,7 +482,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             try {
                 URL url = new URL(buildUrl(postfix_whitelist));
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-
+                urlConnection.setConnectTimeout(2000);
+                urlConnection.setReadTimeout(2000);
                 InputStream stream = new BufferedInputStream(urlConnection.getInputStream());
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
                 StringBuilder builder = new StringBuilder();
@@ -611,7 +612,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 URL url = new URL(strings[0]);
 
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(2000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 
@@ -766,6 +768,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
             try {
                 URL url = new URL(urls[0]);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(2000);
                 return conn.getResponseCode();
             } catch (IOException e) {
                 Log.e("PING_SERVER", "IO Exception: " + e.getMessage());
@@ -807,7 +811,8 @@ public class MainActivity extends AppCompatActivity implements HistoryRange.Hist
                 URL url = new URL(strings[0]);
 
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(2000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 

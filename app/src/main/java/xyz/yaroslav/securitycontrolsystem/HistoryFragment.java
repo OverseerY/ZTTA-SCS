@@ -283,7 +283,8 @@ public class HistoryFragment extends Fragment{
             try {
                 URL url = new URL(strings[0]);
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-
+                urlConnection.setConnectTimeout(2000);
+                urlConnection.setReadTimeout(2000);
                 InputStream stream = new BufferedInputStream(urlConnection.getInputStream());
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
                 StringBuilder builder = new StringBuilder();
