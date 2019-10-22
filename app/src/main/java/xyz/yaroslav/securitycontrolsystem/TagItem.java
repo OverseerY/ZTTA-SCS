@@ -53,11 +53,9 @@ public class TagItem {
         return result;
     }
 
-    public static Comparator<TagItem> TagComparator = new Comparator<TagItem>() {
-        public int compare(TagItem item1, TagItem item2) {
-            String tagTime1 = item1.getsTime().toUpperCase();
-            String tagTime2 = item2.getsTime().toUpperCase();
-            return tagTime2.compareTo(tagTime1);
-        }
+    public static Comparator<TagItem> TagComparator = (item1, item2) -> {
+        String tagTime1 = item1.getsTime().toUpperCase();
+        String tagTime2 = item2.getsTime().toUpperCase();
+        return tagTime2.compareTo(tagTime1);
     };
 }

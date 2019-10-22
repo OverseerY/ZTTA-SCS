@@ -5,16 +5,17 @@ import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.PopupMenu;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.PopupMenu;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,7 +44,7 @@ import java.util.concurrent.ExecutionException;
 
 import static android.content.Context.MODE_PRIVATE;
 
-public class HistoryFragment extends Fragment{
+public class HistoryFragment extends Fragment {
 
     //#region Variables
 
@@ -164,9 +165,9 @@ public class HistoryFragment extends Fragment{
                                 String tagUid;
 
                                 JSONObject jsonObject = new JSONObject(value);
-                                tagName = String.valueOf(jsonObject.getString("tag_data"));
-                                tagTime = String.valueOf(jsonObject.getString("tag_time"));
-                                tagUid = String.valueOf(jsonObject.getString("tag_id"));
+                                tagName = jsonObject.getString("tag_data");
+                                tagTime = jsonObject.getString("tag_time");
+                                tagUid = jsonObject.getString("tag_id");
                                 TagItem tagItem = new TagItem(tagUid, tagName, tagTime);
 
                                 tagFromFileList.add(tagItem);
@@ -308,9 +309,9 @@ public class HistoryFragment extends Fragment{
                     String tagUid ;
                     try {
                         JSONObject nestedObject = jArray.getJSONObject(i);
-                        tagName = String.valueOf(nestedObject.getString("tag_data"));
-                        tagTime = String.valueOf(nestedObject.getString("tag_time"));
-                        tagUid = String.valueOf(nestedObject.getString("tag_id"));
+                        tagName = nestedObject.getString("tag_data");
+                        tagTime = nestedObject.getString("tag_time");
+                        tagUid = nestedObject.getString("tag_id");
 
                         TagItem tagItem = new TagItem(tagUid, tagName, tagTime);
                         tagItemList.add(tagItem);
@@ -349,9 +350,9 @@ public class HistoryFragment extends Fragment{
                             String tagUid;
 
                             JSONObject jsonObject = new JSONObject(value);
-                            tagName = String.valueOf(jsonObject.getString("tag_data"));
-                            tagTime = String.valueOf(jsonObject.getString("tag_time"));
-                            tagUid = String.valueOf(jsonObject.getString("tag_id"));
+                            tagName = jsonObject.getString("tag_data");
+                            tagTime = jsonObject.getString("tag_time");
+                            tagUid = jsonObject.getString("tag_id");
                             TagItem tagItem = new TagItem(tagUid, tagName, tagTime);
 
                             tagFromTempList.add(tagItem);
